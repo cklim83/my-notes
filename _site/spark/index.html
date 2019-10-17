@@ -1,0 +1,625 @@
+<h1 id="just-enough-pyspark-dataframe"><strong>J</strong>ust <strong>E</strong>nough PySpark DataFrame</h1>
+<p><em>Last Edited: 10 June 2019</em></p>
+
+<h2 id="table-of-contents">Table of Contents</h2>
+<ul>
+  <li><a href="#overview-of-pyspark-dataframe">Overview of PySpark Dataframe</a></li>
+  <li><a href="#libaries-and-spark-instantiation">Libraries and Spark Instantiation</a></li>
+  <li><a href="#creating-dataframes">Creating DataFrames</a></li>
+  <li><a href="#inspecting-dataframes">Inspecting DataFrames</a></li>
+  <li><a href="#missing-&amp;-replacing-values">Missing &amp; Replacing Values</a></li>
+  <li><a href="#filter-rows">Filter Rows</a></li>
+  <li><a href="#data-selection">Data Selection</a></li>
+  <li><a href="#add,-rename-&amp;-drop-columns">Add, Rename &amp; Drop Columns</a></li>
+  <li><a href="#remove-duplicates">Remove Duplicates</a></li>
+  <li><a href="#groupby">GroupBy</a></li>
+  <li><a href="#sort-/-orderby">Sort / OrderBy</a></li>
+  <li><a href="#repartitioning">Repartitioning</a></li>
+  <li><a href="#register-dataframe-as-view-for-sql-type-queries">Register DataFrame as View for SQL Type Queries</a></li>
+  <li><a href="#convert-to-other-data-structure">Convert to Other Data Structure</a></li>
+  <li><a href="#write-to-files">Write to Files</a></li>
+  <li><a href="#stop-sparksession">Stop SparkSession</a></li>
+</ul>
+
+<h4 id="overview-of-pyspark-dataframe">Overview of PySpark DataFrame</h4>
+<p>Beginning version 2.0, Spark has moved to a DataFrame API, a higher level abstraction built on top of RDD, the underlying data structure in Spark. Although a Spark DataFrame is very similar to Dataframe in R or Pandas, there are some fundamental differences:</p>
+<ul>
+  <li><strong>Immutable in nature</strong>: Each dataframe once formed, cannot be changed. Transformations used to effect changes to an existing dataframe actually results in the creation of a new one.</li>
+  <li><strong>Lazy Evaluation</strong>: A transformation is not performed until an action is called.</li>
+  <li><strong>Distributed</strong>: Data are stored in distributed fashion on multiple virtual compute units.</li>
+</ul>
+
+<h4 id="libraries-and-spark-instantiation">Libraries and Spark Instantiation</h4>
+<pre><code class="language-Python">from pyspark.sql import SparkSession, functions as F, Row
+from pyspark.sql.types import *
+spark = SparkSession.builder.getOrCreate()
+sc = spark.sparkContext # Get underlying spark context
+</code></pre>
+
+<h4 id="creating-dataframes">Creating DataFrames</h4>
+<ul>
+  <li>Reading from data sources
+    <pre><code class="language-Python">df_csv = spark.read.csv('/path/to/yourcsv.csv', header=True,
+    inferSchema=True, sep=',', encoding='UTF-8')
+df_par = spark.read.parquet('/path/to/parquet/folders')
+</code></pre>
+  </li>
+  <li>Reading From RDD/Pandas Dataframe using <strong>SparkSession.createDataFrame()</strong>
+    <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">rdd</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">parallelize</span><span class="p">([</span><span class="n">Row</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'Tom'</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">23</span><span class="p">),</span>
+    <span class="n">Row</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'David'</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">40</span><span class="p">)])</span>
+<span class="n">df_rdd</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">rdd</span><span class="p">)</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="n">pandasDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s">'name'</span><span class="o">=</span> <span class="p">[</span><span class="s">'Tom'</span><span class="p">,</span> <span class="s">'David'</span><span class="p">],</span> <span class="s">'age'</span><span class="p">:</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">40</span><span class="p">]})</span>
+<span class="n">df_pd</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">pandasDF</span><span class="p">)</span>
+</code></pre></div>    </div>
+  </li>
+  <li>Programmatically using <strong>SparkSession.createDataFrame()</strong>
+    <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">my_list</span> <span class="o">=</span> <span class="p">[[</span><span class="s">'Tom'</span><span class="p">,</span> <span class="mi">23</span><span class="p">],</span> <span class="p">[</span><span class="s">'David'</span><span class="p">,</span> <span class="mi">40</span><span class="p">]]</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">my_list</span><span class="p">,</span> <span class="p">[</span><span class="s">'name'</span><span class="p">,</span> <span class="s">'age'</span><span class="p">])</span>
+</code></pre></div>    </div>
+  </li>
+</ul>
+
+<h4 id="inspecting-dataframes">Inspecting DataFrames</h4>
+<ul>
+  <li>Print
+    <ul>
+      <li><strong>df.show(n, truncate=True)</strong> : Print content of df. Optional n and truncate parameters to customise rows printed and truncation</li>
+      <li><strong>df.printSchema()</strong> : Print schema of df</li>
+      <li><strong>df.describe().show()</strong> : Print summary statistics (mean, std, min, max, count).</li>
+      <li><strong>df.explain()</strong> : Print logical and physical plans</li>
+    </ul>
+  </li>
+  <li>Get Values
+    <ul>
+      <li><strong>df.count()</strong> : Return row count of df</li>
+      <li><strong>df.columns</strong> : Return list of column names of df
+Note: df.count(), len(df.columns) to replace shape function in pandas</li>
+      <li><strong>df.take(n)</strong> : Return first n rows of df</li>
+      <li><strong>df.select(‘colname’).distinct().count()</strong> : Get number of distinct values in column=’colname’</li>
+      <li><strong>df.dtypes</strong> : Return list of column types of df</li>
+      <li><strong>df.crosstab(‘Age’, ‘Gender’).show()</strong> : Calculate pair wise frequency of two categorical columns.</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="missing--replacing-values">Missing &amp; Replacing Values</h4>
+<ul>
+  <li><strong>df.dropna()</strong> : drop rows with missing values. Parameters include:
+    <ul>
+      <li>how = ‘any’ or ‘all’. ‘Any’ will drop rows with any missing value. ‘All’ will only drop rows where all fields are missing.</li>
+      <li>thresh = int. Drop rows with non-null values less than thresh. Overwrites how parameter.</li>
+      <li>subset - optional list of column names to consider.</li>
+    </ul>
+  </li>
+  <li><strong>df.fillna(value, subset)</strong>
+    <ul>
+      <li>value:
+        <ul>
+          <li>Dictionary with key the column name and value, the value to fill for that column.</li>
+          <li>A value (int, float, string) for all columns</li>
+        </ul>
+      </li>
+      <li>subset: optional list of column names to perform fillna operation.</li>
+    </ul>
+  </li>
+  <li><strong>df.na.replace(10, 20)</strong> : replace 10 with 20</li>
+</ul>
+
+<h4 id="filter-rows">Filter Rows</h4>
+<ul>
+  <li>df.filter(df[‘age’]&gt;24).show() # retain only rows where age is &gt;24.</li>
+  <li>df.filter(df[‘age’].isNotNull()) # Select only rows which are not null.</li>
+</ul>
+
+<h4 id="data-selection">Data Selection</h4>
+<ul>
+  <li><strong>Select</strong>
+    <ul>
+      <li><strong>df.select(“firstName”, “lastName”).show()</strong> : select columns</li>
+      <li><strong>df.select(df[‘age’] &gt; 24).show()</strong> : select rows where age &gt; 24</li>
+      <li><strong>df.select(df[‘firstName’], df[‘age’] + 1)</strong> : select with derived values</li>
+    </ul>
+  </li>
+  <li><strong>When</strong>
+    <ul>
+      <li><strong>df.select(“firstName”, F.when(df[‘age’] &gt; 30, 1).otherwise(0)).show()</strong>
+Select column firstName and derived column with 1s if age is &gt;30 and 0s otherwise.</li>
+    </ul>
+  </li>
+  <li><strong>Between</strong>
+    <ul>
+      <li><strong>df.select(df[‘age’].between(22, 24)).show()</strong> # show rows where 22&lt;=age&lt;=24</li>
+    </ul>
+  </li>
+  <li><strong>Startswith-Endswith</strong>
+    <ul>
+      <li><strong>df.select(“firstName”, df[‘lastName’].startswith(“Sm”)).show()</strong></li>
+      <li><strong>df.select(df[‘lastName’].endswith(“th”)).show()</strong></li>
+    </ul>
+  </li>
+  <li><strong>Substring</strong>
+    <ul>
+      <li><strong>df.select(df[‘firstName’].substr(1, 3).alias(“name”)).collect()</strong></li>
+    </ul>
+  </li>
+  <li><strong>Like</strong>
+    <ul>
+      <li><strong>df.select(“firstName”, df[“lastName”].like(“Smith”)).show()</strong> : Show <em>firstName</em>, and boolean column with value=True for rows where lastName = “Smith” and False otherwise.</li>
+    </ul>
+  </li>
+  <li><strong>rlike</strong>: like using regex patterns
+    <ul>
+      <li><strong>df.select(“firstName”, df[‘lastName’].rlike(“^Smith”)).show()</strong>: show firstname and boolean column with True if lastName starts with Smith.</li>
+    </ul>
+  </li>
+  <li><strong>Isin</strong>
+    <ul>
+      <li><strong>df[df[“firstName”].isin([‘Jane’, ‘Boris’])].collect()</strong></li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="add-rename--drop-columns">Add, Rename &amp; Drop Columns</h4>
+<ul>
+  <li><strong>withColumn</strong> to add column</li>
+  <li><strong>withColumnRenamed</strong> to update column name</li>
+  <li><strong>drop</strong> to remove column
+    <pre><code class="language-Python"># Add Column
+df = df.withColumn('city', df.address.city) \
+    .withColumn('postalCode', df.address.postcode) \
+    .withColumn('state', df.address.state) \
+    .withColumn('telePhoneNumber', explode(df.phoneNumber.number)) \
+    .withColumn('telephoneType', explode(df.phoneNumber.type))
+# Rename Column
+df = df.withColumnRenamed('telePhoneNumber', 'phoneNumber')
+# Remove Column
+df = df.drop("address", "phoneNumber")
+</code></pre>
+  </li>
+</ul>
+
+<h4 id="remove-duplicates">Remove Duplicates</h4>
+<ul>
+  <li><strong>DataFrame.select(‘Age’, ‘Gender’).dropDuplicates().show()</strong> : Get unique (‘Age’, ‘Gender’) tuples.</li>
+</ul>
+
+<h4 id="groupby">GroupBy</h4>
+<ul>
+  <li><strong>df.groupBy(“age”).count().show()</strong> : Show row count for each age group.</li>
+</ul>
+
+<h4 id="sort-orderby">Sort/ OrderBy</h4>
+<ul>
+  <li><strong>df.sort(“age”, ascending=True).collect()</strong> : sort by age in ascending order</li>
+  <li><strong>df.orderBy([‘age’, ‘city’], ascending=[True, False]).collect()</strong>: sort by age in ascending, then city in descending.</li>
+</ul>
+
+<h4 id="repartitioning">Repartitioning</h4>
+<ul>
+  <li>df.repartition(10).rdd.getNumPartitions() # Split to 10 partitions</li>
+  <li>df.coalesce(1).rdd.getNumPartitions() # Merge to 1 partition</li>
+</ul>
+
+<h4 id="register-dataframe-as-view-for-sql-type-queries">Register DataFrame as View for SQL Type Queries</h4>
+<ul>
+  <li>Register DataFrame as Views
+    <ul>
+      <li>df.createGlobalTempView(“people”)</li>
+      <li>df.createTempView(“customer”)</li>
+      <li>df.createOrReplaceTempView(“customer”)</li>
+    </ul>
+  </li>
+  <li>Query Views
+    <ul>
+      <li>df5 = spark.sql(“SELECT * FROM customer”).show()</li>
+      <li>peopledf2 = spark.sql(“SELECT * from global_temp.people”).show()</li>
+    </ul>
+  </li>
+</ul>
+
+<h4 id="convert-to-other-data-structure">Convert to Other Data Structure</h4>
+<ul>
+  <li>rdd1 = df.rdd # Convert to RDD.</li>
+  <li>df.toJSON() # Convert to JSON</li>
+  <li>df.toPandas() # convert to pandas dataframe</li>
+</ul>
+
+<h4 id="write-to-files">Write to Files</h4>
+<ul>
+  <li>df.write.save(“nameAndCity.parquet”)</li>
+  <li>df.select(“firstName”, “age”).write.save(“namesAndAges.json”, format=”json”)</li>
+</ul>
+
+<h4 id="stop-sparksession">Stop SparkSession</h4>
+<ul>
+  <li>spark.stop()</li>
+</ul>
+
+<h3 id="create-resilient-distributed-dataset-rdd">Create Resilient Distributed Dataset (RDD)</h3>
+<ul>
+  <li>pyspark.SparkContext instance can connect to spark cluster and are used to create RDDs using two methods:
+    <ul>
+      <li><strong>parallelize(iterable)</strong>: Distribute a local python collection (e.g. list, tuple, set, dictionary (only keys of dictionary are included as elements of RDD)) to return an RDD.</li>
+      <li><strong>textFile(‘path/to/text/csv/file’)</strong>: Each line in file is read as string element of returned RDD. Generally postprocessed using map function to cast to numerics for analytics
+        <ul>
+          <li><strong>collect()</strong>: Action to retrieve ALL elements of RDD. Return type is not RDD.</li>
+          <li><strong>take(n)</strong>: Action to retrieve first n elements of RDD. Return type is not RDD.</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Code Example
+</span><span class="kn">from</span> <span class="nn">pyspark</span> <span class="kn">import</span> <span class="n">SparkContext</span><span class="p">,</span> <span class="n">SparkConf</span>
+
+<span class="n">sc</span> <span class="o">=</span> <span class="n">SparkContext</span><span class="p">()</span>
+<span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="p">(</span><span class="n">sparkContext</span><span class="o">=</span><span class="n">sc</span><span class="p">)</span>
+
+<span class="n">rdd</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">parallelize</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
+<span class="n">rdd</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
+
+<span class="n">str_rdd</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">textFile</span><span class="p">(</span><span class="s">'/path/to/text/csv/file'</span><span class="p">)</span>
+<span class="n">str_rdd</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+</code></pre></div></div>
+
+<h3 id="create-spark-dataframes">Create Spark DataFrames</h3>
+<ul>
+  <li>SparkSession can create spark dataframes from <strong>file, RDDs, pandas dataframes, list objects</strong> using the following method:
+    <ul>
+      <li><strong>SparkSession.createDataFrame(object)</strong>: returns a spark dataframe</li>
+    </ul>
+  </li>
+</ul>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pyspark</span> <span class="kn">import</span> <span class="n">SparkContext</span><span class="p">,</span> <span class="n">SparkConf</span>
+<span class="kn">from</span> <span class="nn">pyspark.sql</span> <span class="kn">import</span> <span class="n">SparkSession</span>
+
+<span class="n">sc</span> <span class="o">=</span> <span class="n">SparkContext</span><span class="p">()</span>
+<span class="n">spark</span> <span class="o">=</span> <span class="n">SparkSession</span><span class="p">(</span><span class="n">sparkContext</span><span class="o">=</span><span class="n">sc</span><span class="p">)</span>
+
+<span class="c1"># From File
+</span><span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="n">csv</span><span class="p">(</span><span class="s">'/path/to/csv.csv'</span><span class="p">,</span>
+                    <span class="n">header</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                    <span class="n">inferSchema</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span>
+                    <span class="n">sep</span><span class="o">=</span><span class="s">','</span><span class="p">,</span>
+                    <span class="n">encoding</span><span class="o">=</span><span class="s">'UTF-8'</span><span class="p">)</span>
+<span class="c1"># OR
+</span><span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">read</span><span class="o">.</span><span class="nb">format</span><span class="p">(</span><span class="s">"csv"</span><span class="p">)</span> \
+      <span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s">"header"</span><span class="p">,</span> <span class="s">"true"</span><span class="p">)</span> \
+      <span class="o">.</span><span class="n">option</span><span class="p">(</span><span class="s">"inferSchema"</span><span class="p">,</span> <span class="s">"true"</span><span class="p">)</span> \
+      <span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s">'/path/to/csv.csv'</span><span class="p">)</span>
+
+<span class="c1"># From RDD
+</span><span class="n">rdd</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">parallelize</span><span class="p">([</span><span class="n">Row</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'Tom'</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">23</span><span class="p">),</span>
+                      <span class="n">Row</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s">'David'</span><span class="p">,</span> <span class="n">age</span><span class="o">=</span><span class="mi">40</span><span class="p">)])</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">rdd</span><span class="p">)</span>
+
+<span class="c1"># From Pandas DataFrame
+</span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="n">pd</span>
+<span class="n">pandasDF</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s">'name'</span><span class="o">=</span> <span class="p">[</span><span class="s">'Tom'</span><span class="p">,</span> <span class="s">'David'</span><span class="p">],</span> <span class="s">'age'</span><span class="p">:</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">40</span><span class="p">]})</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">pandasDF</span><span class="p">)</span>
+
+<span class="c1"># From Nested list/Iterable
+</span><span class="n">my_list</span> <span class="o">=</span> <span class="p">[[</span><span class="s">'Tom'</span><span class="p">,</span> <span class="mi">23</span><span class="p">],</span> <span class="p">[</span><span class="s">'David'</span><span class="p">,</span> <span class="mi">40</span><span class="p">]]</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">my_list</span><span class="p">,</span> <span class="p">[</span><span class="s">'name'</span><span class="p">,</span> <span class="s">'age'</span><span class="p">])</span>
+<span class="c1"># Note: if supplied header list falls short of column number, '_colnum' will be used
+</span>
+<span class="c1"># Show ((Col_1_name, Col_1_type) ... (Col_n_name, Col_n_type))
+</span><span class="n">df</span><span class="o">.</span><span class="n">dtypes</span>
+</code></pre></div></div>
+
+<h3 id="rdd-and-dataframe-interconversions">RDD and DataFrame Interconversions</h3>
+<ul>
+  <li>DataFrame to RDD
+    <ul>
+      <li>RDD objects have many useful <strong>mapping functions (e.g. map, mapValues, flatMap, flatMapValues)</strong> to manipulate the underlying data.</li>
+      <li>We can get the underlying rdd object from a spark dataframe using its <strong>.rdd</strong> attribute</li>
+      <li>Each element in the returned RDD is a pyspark.sql.Row object. A Row is a list of key-value pairs. E.g. [Row=(‘name’=’Tom’, ‘age’=23), Row …]
+<br /></li>
+    </ul>
+  </li>
+  <li>RDD to DataFrame
+    <ul>
+      <li>use the SparkSession.createDataFrame(rdd) function. Every element in the RDD has to be a Row object.</li>
+    </ul>
+  </li>
+</ul>
+
+<pre><code class="language-Python"># DataFrame to RDD
+from pyspark import SparkContext, SparkConf
+from pyspark.sql import SparkSession, Row
+sc = SparkContext()
+spark = SparkSession(sparkContext=sc)
+
+mtcars = spark.read.csv('/FileStore/tables/mtcars.csv',
+                        header=True, inferSchema=True)
+mtcars.rdd.show(2) # show first 5 rows of rdd
+
+# Out[1]:
+# [Row(_c0='Mazda RX4', mpg=21.0, cyl=6, disp=160.0, hp=110, drat=3.9, wt=2.62, qsec=16.46, vs=0, am=1, gear=4, carb=4),
+#  Row(_c0='Mazda RX4 Wag', mpg=21.0, cyl=6, disp=160.0, hp=110, drat=3.9, wt=2.875, qsec=17.02, vs=0, am=1, gear=4, carb=4)]
+
+# RDD to DataFrame with manipulation
+rdd_raw = sc.textFile('/FileStore/tables/mtcars.csv')
+rdd_raw.take(2) # each element is a line string
+# Out[2]:
+# [',mpg,cyl,disp,hp,drat,wt,qsec,vs,am,gear,carb',
+#  'Mazda RX4,21,6,160,110,3.9,2.62,16.46,0,1,4,4']
+
+list_of_list = rdd_raw.map(lambda x: x.split(',')) # returns a new RDD
+list_of_list.show(2)
+# Note: collect()/take(n).first() returns a list and not an RDD
+
+# Out[3]:
+# [['','mpg','cyl','disp','hp','drat','wt','qsec','vs','am','gear','carb'],
+# ['Mazda RX4','21','6','160','110','3.9','2.62','16.46','0','1','4','4']]
+
+header = list_of_list.first() # header is list containing first row
+# Note: first() returns first element ['','mpg','cyl','disp','hp','drat','wt','qsec','vs','am','gear','carb']
+# take(1) returns a list containing first element i.e. nested list
+# [['','mpg','cyl','disp','hp','drat','wt','qsec','vs','am','gear','carb']]
+header[0] = 'model' # substitute '' with 'model'
+
+str_data = list_of_list.filter(lambda x: x[1]!='mpg')
+data = str_data.map(lambda x: list(x[0]) + list(map(float, x[1:])))
+# Note: map returns a map object, wrapping with list returns elements in list
+# Out[4]:
+# [['Mazda RX4',21.0,6.0,160.0,110.0,3.9,2.62,16.46,0.0,1.0,4.0,4.0]
+# []...]
+
+def map_rows(header, values):
+    data_dict = dict(zip(header, values))
+    return Row(**data_dict) # ** dict expands {'key': 'value'} to key='value'
+
+final_rdd = data.map(lambda x: map_rows(header, x))
+# Out[5]:
+# [Row(model='Maxda RX4', mpg='21.0' ...) ...]
+mtcars_df = spark.createDataFrame(final_rdd) # Method 1: rdd to DataFrame
+mtcars_df = final_rdd.toDF() # Method 2: rdd to DataFrame
+# list of colnames is optional parameter to toDF() as info already embedded
+# in each Row in this case.
+mtcars_df.show(5)
+</code></pre>
+
+<h3 id="mergesplit-columns-using-rdd-map-function">Merge/Split Columns Using RDD Map Function</h3>
+<ul>
+  <li>We can select different sublist of columns for merging to form new columns</li>
+</ul>
+
+<pre><code class="language-Python">from pyspark import SparkContext, SparkConf
+from pyspark.sql import SparkSession, Row
+
+spark = SparkSession(sparkContext=SparkContext())
+mtcars_df = spark.read.csv(path='/FileStore/tables/mtcars.csv',
+                           header=True, inferSchema=True,
+                           encoding='UTF-8')
+header = mtcars_df.columns
+header[0] = 'model'
+mtcars_df = mtcars_df.rdd.toDF(header) # substitute new header for new DF
+
+# We can regroup values and reassign names to them
+mtcars_rdd = mtcars_df.rdd.map(lambda x: Row(model=x[0], values=x[1:]))
+# Out[1]:
+# [Row(model='Mazda RX4', values=(21.0, 6, 160.0, 110, 3.9, 2.62, 16.46, 0, 1, 4, 4)),
+#  Row(model='Mazda RX4 Wag', values=(21.0, 6, 160.0, 110, 3.9, 2.875, 17.02, 0, 1, 4, 4))...]
+mtcars_df = spark.createDataFrame(mtcars_rdd)
+mtcars_df.show(5, truncate=False)
+# +-----------------+-----------------------------------------------------+
+# |model            |values                                               |
+# +-----------------+-----------------------------------------------------+
+# |Mazda RX4        |[21.0, 6, 160.0, 110, 3.9, 2.62, 16.46, 0, 1, 4, 4]  |
+# |Mazda RX4 Wag    |[21.0, 6, 160.0, 110, 3.9, 2.875, 17.02, 0, 1, 4, 4] |
+
+# Split and Remerge Values column
+mtcars_rdd_2 = mtcars_df.rdd.map(lambda x: Row(model=x[0],
+                                           x1=x[1][:4],
+                                           x2=x[1][4:]))
+# convert RDD back to DataFrame
+mtcars_df_2 = spark.createDataFrame(mtcars_rdd_2)
+mtcars_df_2.show(5, truncate=False)
+# +-----------------+---------------------+--------------------------------+
+# |model            |x1                   |x2                              |
+# +-----------------+---------------------+--------------------------------+
+# |Mazda RX4        |[21.0, 6, 160.0, 110]|[3.9, 2.62, 16.46, 0, 1, 4, 4]  |
+# |Mazda RX4 Wag    |[21.0, 6, 160.0, 110]|[3.9, 2.875, 17.02, 0, 1, 4, 4] |
+</code></pre>
+
+<h3 id="common-rdd-map-functions">Common RDD Map Functions</h3>
+<ul>
+  <li><strong>map(function)</strong>: Applies each element of the RDD.</li>
+  <li><strong>mapValues(function)</strong>: Elements has to be in key-value pair. Function applies to value part of each element.</li>
+  <li><strong>flatMap(function)</strong>: Function is applied to each element of an RDD before flattening the results. We can simply use this function to flatten elements of an RDD without extra operation on each elements.</li>
+  <li><strong>flatMapValues(function)</strong>: flatMapValues requires each element in RDD to have key/value pair structure. It applies function to each value part of each RDD element before flattening results.</li>
+</ul>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pyspark</span> <span class="kn">import</span> <span class="n">SparkContext</span>
+<span class="n">sc</span> <span class="o">=</span> <span class="n">SparkContext</span><span class="p">()</span>
+
+<span class="c1"># create text rdd using textFile
+</span><span class="n">raw_rdd</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">textFile</span><span class="p">(</span><span class="s">'/FileStore/tables/mtcars.csv'</span><span class="p">)</span>
+<span class="n">raw_rdd</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+<span class="c1"># [',mpg,cyl,disp,hp,drat,wt,qsec,vs,am,gear,carb',
+#  'Mazda RX4,21,6,160,110,3.9,2.62,16.46,0,1,4,4',
+#  'Mazda RX4 Wag,21,6,160,110,3.9,2.875,17.02,0,1,4,4']
+</span>
+<span class="c1"># Create dataframe using map functions
+</span><span class="n">split_rdd</span> <span class="o">=</span> <span class="n">raw_rdd</span><span class="o">.</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s">','</span><span class="p">))</span>
+<span class="n">split_rdd</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="c1"># [['', 'mpg','cyl','disp','hp','drat','wt','qsec','vs','am','gear','carb'],
+#  ['Mazda RX4', '21', '6', '160', '110', '3.9', '2.62', '16.46', '0', '1', '4', '4']]
+</span><span class="n">header</span> <span class="o">=</span> <span class="n">split_rdd</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+<span class="c1"># ['', 'mpg', 'cyl', 'disp', 'hp', 'drat', 'wt', 'qsec', 'vs', 'am', 'gear', 'carb']
+</span><span class="n">data_str</span> <span class="o">=</span> <span class="n">split_rdd</span><span class="o">.</span><span class="nb">filter</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">!=</span><span class="n">header</span><span class="p">)</span> <span class="c1"># filter to omit header
+</span><span class="n">data_str</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="c1"># [['Mazda RX4','21','6','160','110','3.9','2.62','16.46','0','1','4','4'],
+#  ['Mazda RX4 Wag','21','6','160','110','3.9','2.875','17.02','0','1','4','4']]
+</span>
+<span class="c1"># convert string to numeric
+</span><span class="n">data</span> <span class="o">=</span> <span class="n">data_str</span><span class="o">.</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">:])))</span>
+<span class="c1"># [['Mazda RX4',21.0,6.0,160.0,110.0,3.9,2.62,16.46,0.0,1.0,4.0,4.0],
+#  ['Mazda RX4 Wag',21.0,6.0, 160.0, 110.0, 3.9, 2.875, 17.02, 0.0, 1.0, 4.0, 4.0]]
+</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">spark</span><span class="o">.</span><span class="n">createDataFrame</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+<span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">withColumnRenamed</span><span class="p">(</span><span class="s">''</span><span class="p">,</span> <span class="s">'model'</span><span class="p">)</span> <span class="c1"># we rename here rather than set
+# header[0]='model' earlier because it will affect filter to form data_str
+# due to lazy execution.
+</span><span class="n">df</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="c1"># +-------------------+----+---+-----+-----+----+-----+-----+---+---+----+----+
+# |              model| mpg|cyl| disp|   hp|drat|   wt| qsec| vs| am|gear|carb|
+# +-------------------+----+---+-----+-----+----+-----+-----+---+---+----+----+
+# |          Mazda RX4|21.0|6.0|160.0|110.0| 3.9| 2.62|16.46|0.0|1.0| 4.0| 4.0|
+# |      Mazda RX4 Wag|21.0|6.0|160.0|110.0| 3.9|2.875|17.02|0.0|1.0| 4.0| 4.0|
+# |         Datsun 710|22.8|4.0|108.0| 93.0|3.85| 2.32|18.61|1.0|1.0| 4.0| 1.0|
+</span>
+<span class="c1"># Using mapValues()
+</span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="n">np</span>
+<span class="n">kv_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))</span>
+<span class="n">avg_res</span> <span class="o">=</span> <span class="n">kv_data</span><span class="o">.</span><span class="n">mapValues</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="p">))</span> <span class="c1"># x here refers to the values only
+</span><span class="n">avg_res</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="c1"># [('Mazda RX4', 29.90727272727273),
+#  ('Mazda RX4 Wag', 29.981363636363639)]
+</span>
+<span class="c1"># Using flatMap() # flatten items by 1 level
+</span><span class="n">data</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+<span class="c1"># [['Mazda RX4',21.0,6.0,160.0,110.0,3.9,2.62,16.46,0.0,1.0,4.0,4.0],
+#  ['Mazda RX4 Wag',21.0,6.0, 160.0, 110.0, 3.9, 2.875, 17.02, 0.0, 1.0, 4.0, 4.0]]
+</span><span class="n">data</span><span class="o">.</span><span class="n">flatMap</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">15</span><span class="p">)</span>
+<span class="c1"># ['Mazda RX4',21.0,6.0,160.0,110.0,3.9,2.62,16.46,0.0,1.0,4.0,4.0,'Mazda RX4 Wag',
+#  21.0,6.0]
+</span>
+<span class="c1"># flatMapValues()
+# It applies function to each value part of each RDD element before flattening results.
+# For example, my raw data looks like below. But I would like to transform the data so that it has three columns: the first column is the sample id; the second the column is the three types (A,B or C); the third column is the values.
+# id  A	  B	  C
+# 1	  23	18	32
+# 2	  18	29	31
+# 3	  34	21	18
+</span>
+<span class="n">my_data</span> <span class="o">=</span> <span class="p">[(</span><span class="mi">1</span><span class="p">,</span> <span class="p">[</span><span class="mi">23</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">32</span><span class="p">]),</span>
+           <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="p">[</span><span class="mi">18</span><span class="p">,</span> <span class="mi">29</span><span class="p">,</span> <span class="mi">31</span><span class="p">]),</span>
+           <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="p">[</span><span class="mi">34</span><span class="p">,</span> <span class="mi">21</span><span class="p">,</span> <span class="mi">18</span><span class="p">])]</span>
+<span class="n">my_rdd</span> <span class="o">=</span> <span class="n">sc</span><span class="o">.</span><span class="n">parallelize</span><span class="p">(</span><span class="n">my_data</span><span class="p">)</span>
+<span class="n">my_rdd</span><span class="o">.</span><span class="n">flatMapValues</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="s">'ABC'</span><span class="p">,</span> <span class="n">x</span><span class="p">)))</span><span class="o">.</span><span class="n">take</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="c1"># [(1, ('A', 23)),
+#  (1, ('B', 28)),
+#  (1, ('C', 32)),
+#  (2, ('A', 18)),
+#  (2, ('B', 29))]
+</span></code></pre></div></div>
+
+<h3 id="aggregate-functions">Aggregate Functions</h3>
+<ul>
+  <li><strong>aggregate(accum, seqOp, combOp)</strong>: merge results to yield single value.</li>
+  <li><strong>aggregateByKey(accum, seqOp, combOp)</strong>: merge results by key.
+    <ul>
+      <li><strong>accum</strong> is data container serving accumulator role. It has common data structure as returned values from seqOp function.</li>
+      <li><strong>seqOp</strong> is a function that takes two arguments: first argument is the accum and second argument is an element from the RDD. accum gets updated with returned value after every run.</li>
+      <li><strong>combOp</strong> is a function that combines accums across partitions. It takes two final accums from different partitions as arguments and returns the combined value.</li>
+    </ul>
+  </li>
+</ul>
+
+<pre><code class="language-Python"># calculates squared_diff from mean of mpg and disp using aggregate function
+mtcars_df = spark.read.csv('FileStore/tables/mtcars.csv',
+      inferSchema=True, header=True).select(['mpg', 'disp'])
+mtcars_df.take(3)
+# [Row(mpg=21.0, disp=160.0),
+#  Row(mpg=21.0, disp=160.0),
+#  Row(mpg=22.8, disp=108.0)]
+mpg_mean = mtcars_df.select('mpg').rdd.map(lambda x: x[0]).mean()
+dis_mean = mtcars_df.select('disp').rdd.map(lambda x: x[0]).mean()
+print('mpg mean = ', mpg_mean, '; ' 'disp mean = ', disp_mean)
+# mpg mean =  20.090625000000003 ; disp mean =  230.721875
+
+# initial tuple values are containers for squared_diff_from_mean of mpg and displacement
+accum = (0, 0)
+# accumulator and element in partition
+seqOp = lambda a, e: (a[0] + (e[0] - mpg_mean)**2, a[1] + (e[1] - mpg_mean)**2)
+# Combine partition x and y
+combOp = lambda px, py: (px[0] + py[0], px[1] + py[1])
+
+sqdiff_mpg, sqdiff_disp = mtcars_df.rdd.aggregate(accum, sepOp, combOp).collect()
+
+# aggregateByKey Example
+iris_rdd = sc.textFile('FileStore/tables/iris.csv', use_unicode=True)
+iris_rdd.take(2)
+# ['sepal_length,sepal_width,petal_length,petal_width,species',
+#  '5.1,3.5,1.4,0.2,setosa']
+iris_rdd_2 = iris_rdd.map(lambda x: x.split(',')).\
+    filter(lambda x: x[0] != 'sepal_length').\
+    map(lambda x: (x[-1], [*map(float, x[:-1])]))
+iris_rdd_2.take(5)
+# [('setosa', [5.1, 3.5, 1.4, 0.2]),
+#  ('setosa', [4.9, 3.0, 1.4, 0.2]),
+#  ('setosa', [4.7, 3.2, 1.3, 0.2]]
+
+accum = (0, 0) # initial tuple values are containers for variance of mpg and displacement
+seqOp = lambda a, e: (a[0] + (e[0])**2, a[1] + (e[1])**2)
+combOp = lambda px, py: (px[0] + py[0], px[1] + py[1])
+
+iris_rdd_2.aggregateByKey(accum, seqOp, combOp)
+# [('versicolor', (1774.8600000000001, 388.47)),
+#  ('setosa', (1259.0899999999997, 591.2500000000002)),
+#  ('virginica', (2189.9000000000005, 447.33))]
+</code></pre>
+
+<h3 id="convert-continuous-variables-to-categories">Convert Continuous Variables to Categories</h3>
+<ul>
+  <li><strong>pyspark.ml.feature.binarizer</strong>: convert to binary based on threshold.</li>
+  <li><strong>pyspark.ml.feature.bucketizer</strong>: convert to categories given split points, n+1 split points for n categories.</li>
+</ul>
+
+<pre><code class="language-Python">import numpy as np
+import pandas as pd
+np.random.seed(seed=1234)
+pdf = pd.DataFrame({
+        'x1': np.random.randn(10),
+        'x2': np.random.rand(10)*10
+    })
+np.random.seed(seed=None)
+df = spark.createDataFrame(pdf)
+df.show()
+# +--------------------+------------------+
+# |                  x1|                x2|
+# +--------------------+------------------+
+# | 0.47143516373249306| 6.834629351721363|
+# | -1.1909756947064645| 7.127020269829002|
+# |  1.4327069684260973|3.7025075479039495|
+# | -0.3126518960917129| 5.611961860656249|
+# | -0.7205887333650116| 5.030831653078097|
+# |  0.8871629403077386|0.1376844959068224|
+# |  0.8595884137174165| 7.728266216123741|
+# | -0.6365235044173491| 8.826411906361166|
+# |0.015696372114428918| 3.648859839013723|
+# | -2.2426849541854055| 6.153961784334937|
+# +--------------------+------------------+
+from pyspark.ml.feature import Binarizer, Bucketizer
+# threshold = 0 for binarizer
+binarizer = Binarizer(threshold=0, inputCol='x1', outputCol='x1_new')
+# provide 5 split points to generate 4 buckets
+bucketizer = Bucketizer(splits=[0, 2.5, 5, 7.5, 10], inputCol='x2', outputCol='x2_new')
+# pipeline stages
+from pyspark.ml import Pipeline
+stages = [bucketizer, binarizer]
+pipeline = Pipeline(stages=stages)
+# fit the pipeline model and transform the data
+pipeline.fit(df).transform(df).show()
+# +--------------------+------------------+------+------+
+# |                  x1|                x2|x2_new|x1_new|
+# +--------------------+------------------+------+------+
+# | 0.47143516373249306| 6.834629351721363|   2.0|   1.0|
+# | -1.1909756947064645| 7.127020269829002|   2.0|   0.0|
+# |  1.4327069684260973|3.7025075479039495|   1.0|   1.0|
+# | -0.3126518960917129| 5.611961860656249|   2.0|   0.0|
+# | -0.7205887333650116| 5.030831653078097|   2.0|   0.0|
+# |  0.8871629403077386|0.1376844959068224|   0.0|   1.0|
+# |  0.8595884137174165| 7.728266216123741|   3.0|   1.0|
+# | -0.6365235044173491| 8.826411906361166|   3.0|   0.0|
+# |0.015696372114428918| 3.648859839013723|   1.0|   1.0|
+# | -2.2426849541854055| 6.153961784334937|   2.0|   0.0|
+# +--------------------+------------------+------+------+
+</code></pre>
+
+<h3 id="row-selection">Row Selection</h3>
