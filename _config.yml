@@ -16,7 +16,7 @@
 title: My Notes
 # email:
 description: Compilation of personal notes of self-study subjects
-baseurl: "/my-notes" # the subpath of your site, e.g. /blog
+baseurl: "/about" # the subpath of your site, e.g. /blog
 url: "https://cklim83.github.io" # the base hostname & protocol for your site, e.g. http://example.com
 # twitter_username: jekyllrb
 github_username: cklim83
