@@ -1,9 +1,9 @@
 ---
 layout: default
-title: About
+title: Home
 nav_order: 1
 description: "A compilation of personal notes from self-study courses"
-permalink: /home
+permalink: /
 ---
 
 ### Welcome
